@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    ".", "grpc-todo",
+    ".", "grpc-todo", "htmx-warp",
 ]
 
 [workspace.dependencies]

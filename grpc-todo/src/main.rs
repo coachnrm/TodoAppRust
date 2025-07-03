@@ -1,6 +1,9 @@
 mod config;
 mod db;
 
-fn main() {
-    println!("Hello, world!");
+use server::run_server;
+
+#[tokio::main]
+async fn main() {
+    run_server().await;
 }

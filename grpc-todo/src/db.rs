@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sqlx::{migrate::MigrateDatabase, Pool, Sqlite, SqlitePool};
 use crate::config::Config;
 
@@ -21,12 +21,12 @@ pub async fn init_db() -> Pool<Sqlite> {
         println!("Database already exists");
     }
 
-    let pool = SqlitePool::connect(&config.database_url).unwrap();
+    let pool = SqlitePool::connect(&config.database_url).await.unwrap();
 
     let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let migration = std::path::Path::new(&crate_dir).join("./migrations");
+    let migrations = std::path::Path::new(&crate_dir).join("./migrations");
 
-    let migration_results = sqlx::migrate::Migrator::new(migrations) 
+    let migration_results = sqlx::migrate::Migrator::new(migrations)
         .await
         .unwrap()
         .run(&pool)
@@ -41,4 +41,43 @@ pub async fn init_db() -> Pool<Sqlite> {
 
     pool
 }
+
+pub async fn create_todo(pool: &Pool<Sqlite>, title: &str) -> Todo {
+    sqlx::query_as::<_, Todo>(
+        "INSERT INTO todos (title, completed) VALUES (?, ?) RETURNING id, title, completed"
+    )
+    .bind(title)
+    .bind(false)
+    .fetch_one(pool)
+    .await
+    .expect("Failed to insert todo")
+}
+
+pub async fn get_todos(pool: &Pool<Sqlite>) -> Vec<Todo> {
+    sqlx::query_as::<_, Todo>("SELECT id, title, completed FROM todos")
+        .fetch_all(pool)
+        .await
+        .expect("Failed to fetch todos")
+}
+
+pub async fn update_todo(pool: &Pool<Sqlite>, id: Option<i64>, title: &str, completed: bool) -> Todo {
+    sqlx::query_as::<_, Todo>(
+        "UPDATE todos SET title = ?, completed = ? WHERE id = ? RETURNING id, title, completed"
+    )
+    .bind(title)
+    .bind(completed)
+    .bind(id)
+    .fetch_one(pool)
+    .await
+    .expect("Failed to update todo")
+}
+
+pub async fn delete_todo(pool: &Pool<Sqlite>, id: Option<i64>) {
+    sqlx::query("DELETE FROM todos WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await
+        .expect("Failed to delete todo");
+}
+
 
